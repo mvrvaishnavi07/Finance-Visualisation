@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Analysis Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2962ff;
+            --secondary: #0d47a1;
+            --accent1: #00bcd4;
+            --accent2: #651fff;
+            --accent3: #ff3d00;
+        }
+
+        body {
+            background: #131313;
+            color: #fff;
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: -0.03em;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(45deg, var(--secondary), var(--primary));
+            padding: 30px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(255,255,255,0.1),
+                rgba(255,255,255,0.1) 10px,
+                transparent 10px,
+                transparent 20px
+            );
+        }
+
+        .header h1 {
+            text-align: center;
+            font-family: 'Poppins', sans-serif;
+            font-size: 3em;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .description {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 30px 0;
+            position: relative;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            font-size: 1.1em;
+            line-height: 1.7;
+            font-weight: 300;
+        }
+
+        .description::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent1), var(--accent2), var(--accent3));
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .dashboard-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 30px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+            overflow: hidden;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .dashboard-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at top right, 
+                rgba(255,255,255,0.1) 0%, 
+                transparent 60%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .dashboard-item:hover::before {
+            opacity: 1;
+        }
+
+        .dashboard-item:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            background: rgba(255,255,255,0.1);
+        }
+
+        .item-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .icon-container {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 1.5em;
+        }
+
+        .dashboard-item:nth-child(1) .icon-container {
+            background: linear-gradient(135deg, var(--accent1), var(--primary));
+        }
+
+        .dashboard-item:nth-child(2) .icon-container {
+            background: linear-gradient(135deg, var(--accent2), var(--primary));
+        }
+
+        .dashboard-item:nth-child(3) .icon-container {
+            background: linear-gradient(135deg, var(--accent3), var(--primary));
+        }
+
+        .dashboard-item h2 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.8em;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(90deg, #fff, #a0a0a0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        .dashboard-item p {
+            color: #a0a0a0;
+            line-height: 1.7;
+            margin: 20px 0;
+            font-size: 1.05em;
+            font-weight: 300;
+        }
+
+        .item-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .metrics {
+            display: flex;
+            gap: 15px;
+        }
+
+        .metric {
+            display: flex;
+            align-items: center;
+            color: #a0a0a0;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .metric i {
+            margin-right: 5px;
+            font-size: 0.9em;
+        }
+
+        .action-button {
+            padding: 8px 15px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            font-size: 0.95em;
+            letter-spacing: 0.02em;
+        }
+
+        .action-button:hover {
+            background: var(--primary);
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>Financial Analysis Dashboard</h1>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="description">
+            <p>This dataset delves into the financial performance of top companies by recording key metrics such
+            as revenue, earnings, market capitalisation, P/E ratio, and dividend yield. By comparing these
+            metrics, we gain a comprehensive understanding of a company's scale, profitability, market value,
+            and growth potential. Through visualisations, the analysis also explores correlations between these
+            metrics and offers insights into country-level performance, highlighting economic dominance
+            across various sectors. This holistic approach provides a multi-dimensional view of global financial
+            powerhouses, investor confidence, and regional economic trends.</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <a href="index2.html" class="dashboard-item">
+                <div class="item-header">
+                    <div class="icon-container">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h2>Correlation Analysis</h2>
+                </div>
+                <p>Explore relationships between different financial metrics and understand how they influence each other through advanced correlation techniques and visual representations.</p>
+                <div class="item-footer">
+                    <div class="metrics">
+                        <span class="metric"><i class="fas fa-chart-bar"></i> 12 Metrics</span>
+                        <span class="metric"><i class="fas fa-database"></i> Real-time</span>
+                    </div>
+                    <button class="action-button">Explore <i class="fas fa-arrow-right"></i></button>
+                </div>
+            </a>
+
+            <a href="index.html" class="dashboard-item">
+                <div class="item-header">
+                    <div class="icon-container">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <h2>Metric Distribution</h2>
+                </div>
+                <p>Analyze the distribution patterns of various financial metrics across different companies and sectors with interactive visualization tools.</p>
+                <div class="item-footer">
+                    <div class="metrics">
+                        <span class="metric"><i class="fas fa-industry"></i> 8 Sectors</span>
+                        <span class="metric"><i class="fas fa-globe"></i> Global</span>
+                    </div>
+                    <button class="action-button">Analyze <i class="fas fa-arrow-right"></i></button>
+                </div>
+            </a>
+
+            <a href="version2.html" class="dashboard-item">
+                <div class="item-header">
+                    <div class="icon-container">
+                        <i class="fas fa-chart-scatter"></i>
+                    </div>
+                    <h2>Company Metrics Analysis</h2>
+                </div>
+                <p>Visualize relationships between two variables to identify patterns, trends, and potential outliers with interactive scatter plot analysis.</p>
+                <div class="item-footer">
+                    <div class="metrics">
+                        <span class="metric"><i class="fas fa-calculator"></i> 15 Variables</span>
+                        <span class="metric"><i class="fas fa-clock"></i> Updated</span>
+                    </div>
+                    <button class="action-button">View <i class="fas fa-arrow-right"></i></button>
+                </div>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

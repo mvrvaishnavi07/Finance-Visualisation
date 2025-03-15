@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 2rem;
+        }
+
+        .heatmap-container {
+            font-family: inherit;
+        }
+
+        .heatmap-cell {
+            transition: all 0.3s;
+            cursor: pointer;
+            rx: 4px;
+            ry: 4px;
+        }
+
+        .heatmap-cell:hover {
+            filter: brightness(0.9);
+        }
+
+        .tooltip {
+            position: absolute;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 8px;
+            pointer-events: none;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: 1px solid #eee;
+            line-height: 1.5;
+        }
+
+        .legend-pointer {
+            stroke: #333;
+            stroke-width: 2;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .legend-pointer-circle {
+            fill: #333;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            text-anchor: middle;
+            fill: #1a1a1a;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            fill: #666;
+            text-anchor: middle;
+        }
+
+        .axis-label {
+            font-size: 12px;
+            fill: #4a4a4a;
+        }
+
+        .legend-title {
+            font-size: 12px;
+            fill: #666;
+        }
+
+        .domain, .tick line {
+            stroke: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="heatmap"></div>
+    </div>
+
+    <script>
+        const data = [
+            {name: "Apple", revenue: 391.03, earnings: 123.21, marketCap: 303397, peRatio: 38.2, dividendYield: 0.32},
+            {name: "Microsoft", revenue: 22017, earnings: 9553, marketCap: 265560, peRatio: 35.5, dividendYield: 0.75},
+            {name: "Saudi Aramco", revenue: 40795, earnings: 18093, marketCap: 155773, peRatio: 13.5, dividendYield: 3.47},
+            {name: "Alphabet/Google", revenue: 28354, earnings: 9368, marketCap: 196972, peRatio: 35.6, dividendYield: 0.32},
+            {name: "Amazon", revenue: 51735, earnings: 5215, marketCap: 214168, peRatio: 48.7, dividendYield: 0},
+            {name: "NVIDIA", revenue: 9475, earnings: 6120, marketCap: 282372, peRatio: 69.6, dividendYield: 0.03},
+            {name: "Meta/Facebook", revenue: 13845, earnings: 6014, marketCap: 158341, peRatio: 62.6, dividendYield: 0.28},
+            {name: "Berkshire Hathaway", revenue: 37786, earnings: 11538, marketCap: 88512, peRatio: 11.6, dividendYield: 0},
+            {name: "Tesla", revenue: 8215, earnings: 786.59, marketCap: 91739, peRatio: 96.3, dividendYield: 0},
+            {name: "UnitedHealth Group", revenue: 32460, earnings: 1680, marketCap: 42661, peRatio: 22.9, dividendYield: 1.53},
+            {name: "Visa", revenue: 2997, earnings: 1995, marketCap: 58739, peRatio: 42.3, dividendYield: 0.46},
+            {name: "JPMorgan Chase", revenue: 14451, earnings: 5759, marketCap: 66793, peRatio: 16.4, dividendYield: 1.75},
+            {name: "TSMC", revenue: 6413, earnings: 3241, marketCap: 93998, peRatio: 11.9, dividendYield: 1.12},
+            {name: "Walmart", revenue: 56328, earnings: 2471, marketCap: 71471, peRatio: 19.6, dividendYield: 0.81},
+            {name: "Mastercard", revenue: 2271, earnings: 1225, marketCap: 44756, peRatio: 49.0, dividendYield: 0.49}
+        ];
+
+        const metrics = ['revenue', 'earnings', 'marketCap', 'peRatio', 'dividendYield'];
+        const metricLabels = {
+            'revenue': 'Revenue',
+            'earnings': 'Earnings',
+            'marketCap': 'Market Cap',
+            'peRatio': 'P/E Ratio',
+            'dividendYield': 'Dividend Yield'
+        };
+
+        // Calculate correlations
+        const correlationData = [];
+        metrics.forEach(metric1 => {
+            metrics.forEach(metric2 => {
+                const correlation = calculateCorrelation(
+                    data.map(d => d[metric1]),
+                    data.map(d => d[metric2])
+                );
+                correlationData.push({
+                    metric1,
+                    metric2,
+                    correlation
+                });
+            });
+        });
+
+        // Set up dimensions
+        const margin = {top: 80, right: 105, bottom: 50, left: 100};
+        const width = 700 - margin.left - margin.right;
+        const height = 600 - margin.top - margin.bottom;
+
+        // Create SVG
+        const svg = d3.select('#heatmap')
+            .append('svg')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom)
+            .append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Add title and subtitle
+        svg.append('text')
+            .attr('class', 'title')
+            .attr('x', width / 2)
+            .attr('y', -50)
+            .text('Financial Metrics Correlation Analysis');
+
+        svg.append('text')
+            .attr('class', 'subtitle')
+            .attr('x', width / 2)
+            .attr('y', -25)
+            .text('Analyzing relationships between key financial indicators');
+
+        // Create scales
+        const x = d3.scaleBand()
+            .range([0, width])
+            .domain(metrics.map(m => metricLabels[m]))
+            .padding(0.05);
+
+        const y = d3.scaleBand()
+            .range([0, height])
+            .domain(metrics.map(m => metricLabels[m]))
+            .padding(0.05);
+
+        // Create color scale
+        const color = d3.scaleSequential()
+            .interpolator(d3.interpolateRdYlBu)
+            .domain([-1, 1]);
+
+        // Create tooltip
+        const tooltip = d3.select("body")
+            .append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+        // Add cells
+        svg.selectAll('rect')
+            .data(correlationData)
+            .enter()
+            .append('rect')
+            .attr('class', 'heatmap-cell')
+            .attr('x', d => x(metricLabels[d.metric2]))
+            .attr('y', d => y(metricLabels[d.metric1]))
+            .attr('width', x.bandwidth())
+            .attr('height', y.bandwidth())
+            .style('fill', d => color(d.correlation))
+            .on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                    
+                tooltip.html(`
+                    <strong>${metricLabels[d.metric1]} vs ${metricLabels[d.metric2]}</strong><br/>
+                    Correlation: ${d.correlation.toFixed(3)}<br/>
+                    ${getCorrelationDescription(d.correlation)}
+                `)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on('mouseout', function() {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
+
+        // Add correlation values
+        svg.selectAll('text.cell')
+            .data(correlationData)
+            .enter()
+            .append('text')
+            .attr('class', 'axis-label')
+            .attr('x', d => x(metricLabels[d.metric2]) + x.bandwidth() / 2)
+            .attr('y', d => y(metricLabels[d.metric1]) + y.bandwidth() / 2)
+            .attr('text-anchor', 'middle')
+            .attr('dominant-baseline', 'middle')
+            .style('font-size', '12px')
+            .style('fill', d => Math.abs(d.correlation) > 0.5 ? 'white' : 'black')
+            .text(d => d.correlation.toFixed(2));
+
+        // Add axes
+        svg.append('g')
+            .call(d3.axisTop(x))
+            .selectAll('text')
+            .attr('class', 'axis-label');
+
+        svg.append('g')
+            .call(d3.axisLeft(y))
+            .selectAll('text')
+            .attr('class', 'axis-label');
+
+        // Add legend
+        const legendWidth = 20;
+        const legendHeight = height;
+        
+        const legendScale = d3.scaleSequential()
+            .interpolator(d3.interpolateRdYlBu)
+            .domain([1, -1]);
+
+        const legendAxis = d3.scaleLinear()
+            .domain([1, -1])
+            .range([0, legendHeight]);
+
+        const legend = svg.append('g')
+            .attr('transform', `translate(${width + 40}, 0)`);
+
+        const legendGradient = legend.append('defs')
+            .append('linearGradient')
+            .attr('id', 'legend-gradient')
+            .attr('x1', '0%')
+            .attr('x2', '0%')
+            .attr('y1', '0%')
+            .attr('y2', '100%');
+
+        legendGradient.selectAll('stop')
+            .data(d3.range(0, 1.1, 0.1))
+            .enter()
+            .append('stop')
+            .attr('offset', d => `${d * 100}%`)
+            .attr('stop-color', d => legendScale(-1 + d * 2));
+
+        legend.append('rect')
+            .attr('width', legendWidth)
+            .attr('height', legendHeight)
+            .attr('rx', 4)
+            .attr('ry', 4)
+            .style('fill', 'url(#legend-gradient)');
+
+        // Add pointer elements
+        const pointer = legend.append('g')
+            .attr('class', 'legend-pointer-group');
+
+        pointer.append('line')
+            .attr('class', 'legend-pointer')
+            .attr('x1', -5)
+            .attr('x2', legendWidth + 5)
+            .attr('y1', 0)
+            .attr('y2', 0);
+
+        pointer.append('circle')
+            .attr('class', 'legend-pointer-circle')
+            .attr('r', 3)
+            .attr('cx', legendWidth + 5);
+
+        // Update cell click behavior
+        svg.selectAll('.heatmap-cell')
+            .on('click', function(event, d) {
+                const y = legendAxis(d.correlation);
+                pointer.attr('transform', `translate(0, ${y})`);
+                pointer.selectAll('.legend-pointer, .legend-pointer-circle')
+                    .style('opacity', 1);
+                event.stopPropagation();
+            });
+
+        // Add click handler to hide pointer
+        d3.select('body').on('click', function() {
+            pointer.selectAll('.legend-pointer, .legend-pointer-circle')
+                .style('opacity', 0);
+        });
+
+        const legendAxis1 = d3.axisRight(legendAxis)
+            .ticks(5)
+            .tickFormat(d3.format('.1f'));
+
+        legend.append('g')
+            .attr('transform', `translate(${legendWidth}, 0)`)
+            .call(legendAxis1)
+            .select(".domain")
+            .style("stroke", "#e0e0e0");
+
+        legend.append('text')
+            .attr('class', 'legend-title')
+            .attr('x', -legendHeight / 2)
+            .attr('y', legendWidth + 45)
+            .attr('transform', 'rotate(-90)')
+            .style('text-anchor', 'middle')
+            .text('Correlation Coefficient');
+
+        // Utility functions
+        function calculateCorrelation(x, y) {
+            const n = x.length;
+            const mean_x = x.reduce((a, b) => a + b) / n;
+            const mean_y = y.reduce((a, b) => a + b) / n;
+            
+            const cov = x.reduce((sum, xi, i) => 
+                sum + (xi - mean_x) * (y[i] - mean_y), 0) / (n - 1);
+            
+            const std_x = Math.sqrt(x.reduce((sum, xi) => 
+                sum + Math.pow(xi - mean_x, 2), 0) / (n - 1));
+            
+            const std_y = Math.sqrt(y.reduce((sum, yi) => 
+                sum + Math.pow(yi - mean_y, 2), 0) / (n - 1));
+            
+            return cov / (std_x * std_y);
+        }
+
+        function getCorrelationDescription(correlation) {
+            const abs = Math.abs(correlation);
+            if (abs >= 0.8) return "Very strong correlation";
+            if (abs >= 0.6) return "Strong correlation";
+            if (abs >= 0.4) return "Moderate correlation";
+            if (abs >= 0.2) return "Weak correlation";
+            return "Very weak correlation";
+        }
+    </script>
+</body>
+</html>

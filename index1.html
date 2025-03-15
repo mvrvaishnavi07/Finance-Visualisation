@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revenue & Market Cap Distribution</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f9;
+            padding: 20px;
+        }
+        .chart-wrapper {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            flex: 0 1 400px;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            font-size: 14px;
+            background: #ffffff;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-top: 10px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            background: #eef;
+        }
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 14px;
+            visibility: hidden;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .arc path {
+            cursor: pointer;
+        }
+        @media (max-width: 850px) {
+            .chart-wrapper {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Global Financial Distribution</h1>
+    <div class="chart-wrapper">
+        <div class="chart-container">
+            <h2>Revenue Distribution</h2>
+            <svg id="revenueChart" width="360" height="360"></svg>
+            <div class="legend" id="revenueLegend"></div>
+        </div>
+        <div class="chart-container">
+            <h2>Market Cap Distribution</h2>
+            <svg id="marketCapChart" width="360" height="360"></svg>
+            <div class="legend" id="marketCapLegend"></div>
+        </div>
+    </div>
+    <div class="tooltip"></div>
+
+    <script>
+        const width = 360, height = 360, radius = Math.min(width, height) / 2.2;
+        const color = d3.scaleOrdinal(d3.schemeSet2);
+        const tooltip = d3.select(".tooltip");
+
+        function createPieChart(svgId, legendId, dataFile, valueKey, titleKey) {
+            const svg = d3.select(`#${svgId}`)
+                .append("g")
+                .attr("transform", `translate(${width / 2}, ${height / 2})`);
+            
+            const legend = d3.select(`#${legendId}`);
+
+            d3.csv(dataFile).then(data => {
+                data.forEach(d => d.percentage = +d.percentage);
+                
+                const pie = d3.pie().sort(null).value(d => d.percentage);
+                const arc = d3.arc().innerRadius(0).outerRadius(radius);
+                const hoverArc = d3.arc().innerRadius(0).outerRadius(radius * 1.05);
+                const labelArc = d3.arc().innerRadius(radius * 0.7).outerRadius(radius * 0.7);
+
+                const arcs = svg.selectAll(".arc")
+                    .data(pie(data))
+                    .enter()
+                    .append("g")
+                    .attr("class", "arc");
+
+                arcs.append("path")
+                    .attr("d", arc)
+                    .attr("fill", d => color(d.data.country))
+                    .transition()
+                    .duration(1000)
+                    .attrTween("d", d => {
+                        const i = d3.interpolate({startAngle: 0, endAngle: 0}, d);
+                        return t => arc(i(t));
+                    });
+                
+                // Text labels with percentage - positioned closer to the outer edge
+                arcs.append("text")
+                    .attr("transform", d => {
+                        // Angle to determine proper positioning
+                        const c = labelArc.centroid(d);
+                        // Move text closer to the edge
+                        const x = c[0] * 1.3;
+                        const y = c[1] * 1.3;
+                        return `translate(${x}, ${y})`;
+                    })
+                    .attr("text-anchor", d => {
+                        // Determine text anchor based on angle
+                        const midAngle = (d.startAngle + d.endAngle) / 2;
+                        return midAngle < Math.PI ? "start" : "end";
+                    })
+                    .style("font-size", "12px")
+                    .style("font-weight", "bold")
+                    .style("fill", "black")
+                    .style("text-shadow", "1px 1px 2px white, -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white")
+                    .text(d => d.data.percentage > 1 ? `${d.data.percentage.toFixed(1)}%` : "");
+                
+                arcs.on("mouseover", function(event, d) {
+                    d3.select(this).select("path")
+                        .transition().duration(200)
+                        .attr("d", hoverArc);
+
+                    tooltip.style("visibility", "visible")
+                        .html(`<strong>${d.data.country}</strong><br>${titleKey}: ${d3.format(",")(d.data[valueKey])}<br>Percentage: ${d.data.percentage.toFixed(2)}%`)
+                        .style("left", `${event.pageX + 10}px`)
+                        .style("top", `${event.pageY + 10}px`);
+                })
+                .on("mousemove", event => {
+                    tooltip.style("left", `${event.pageX + 10}px`)
+                        .style("top", `${event.pageY + 10}px`);
+                })
+                .on("mouseout", function() {
+                    d3.select(this).select("path")
+                        .transition().duration(200)
+                        .attr("d", arc);
+                    tooltip.style("visibility", "hidden");
+                });
+
+                legend.selectAll(".legend-item")
+                    .data(data)
+                    .enter()
+                    .append("div")
+                    .attr("class", "legend-item")
+                    .html(d => `<span class="legend-color" style="background:${color(d.country)}"></span>${d.country}`);
+            }).catch(error => console.error("Error loading CSV:", error));
+        }
+
+        createPieChart("revenueChart", "revenueLegend", "top_10_rev_per.csv", "revenue_ttm", "Revenue");
+        createPieChart("marketCapChart", "marketCapLegend", "top_10_market_per.csv", "marketcap", "Market Cap");
+    </script>
+
+</body>
+</html>

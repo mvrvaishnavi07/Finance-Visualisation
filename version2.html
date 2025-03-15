@@ -1,0 +1,269 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8fafc;
+            color: #1e293b;
+            min-height: 100vh;
+        }
+        .container {
+            width: 98%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .title {
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 40px;
+            color: #0f172a;
+            font-weight: 600;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .chart {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 5px;
+            transition: transform 0.2s ease-in-out;
+        }
+        .chart.highlighted {
+            background: #f0f9ff;
+        }
+        .chart:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .tooltip {
+            position: absolute;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            pointer-events: none;
+            font-size: 14px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .chart-title {
+            text-align: center;
+            font-size: 14px;
+            margin: 10px 0;
+            font-weight: 500;
+            color: #334155;
+        }
+        .axis line, .axis path {
+            stroke: #cbd5e1;
+        }
+        .axis text {
+            fill: #030a14;
+            font-size: 10px;
+        }
+        .grid line {
+            stroke: #e2e8f0;
+            stroke-opacity: 0.5;
+        }
+        svg {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">Company Metrics Analysis</h1>
+        <div class="grid" id="chart-grid"></div>
+    </div>
+
+    <script>
+        const data = [
+            {name: "Apple", country: "USA", revenue: 394.33, earnings: 94.32, marketCap: 3387.02, peRatio: 35.9, dividendYield: 0.55},
+            {name: "Microsoft", country: "USA", revenue: 207.59, earnings: 69.02, marketCap: 3043.38, peRatio: 44.1, dividendYield: 0.80},
+            {name: "Saudi Aramco", country: "Saudi Arabia", revenue: 494.89, earnings: 120.70, marketCap: 1797.00, peRatio: 14.9, dividendYield: 3.50},
+            {name: "Alphabet/Google", country: "USA", revenue: 282.85, earnings: 58.59, marketCap: 1944.10, peRatio: 33.2, dividendYield: 0},
+            {name: "Amazon", country: "USA", revenue: 574.78, earnings: 30.43, marketCap: 1849.85, peRatio: 60.8, dividendYield: 0},
+            {name: "NVIDIA", country: "USA", revenue: 26.97, earnings: 9.75, marketCap: 2649.24, peRatio: 271.7, dividendYield: 0.05},
+            {name: "Meta/Facebook", country: "USA", revenue: 116.61, earnings: 39.37, marketCap: 1294.66, peRatio: 32.9, dividendYield: 0},
+            {name: "Berkshire Hathaway", country: "USA", revenue: 369.00, earnings: 73.40, marketCap: 1028.00, peRatio: 14.0, dividendYield: 0},
+            {name: "Tesla", country: "USA", revenue: 81.46, earnings: 12.58, marketCap: 672.79, peRatio: 53.5, dividendYield: 0},
+            {name: "UnitedHealth Group", country: "USA", revenue: 324.60, earnings: 20.12, marketCap: 552.83, peRatio: 27.5, dividendYield: 1.40},
+            {name: "Visa", country: "USA", revenue: 29.31, earnings: 14.96, marketCap: 550.37, peRatio: 36.8, dividendYield: 0.60},
+            {name: "JPMorgan Chase", country: "USA", revenue: 179.93, earnings: 41.80, marketCap: 626.79, peRatio: 15.0, dividendYield: 2.70},
+            {name: "TSMC", country: "Taiwan", revenue: 75.88, earnings: 33.16, marketCap: 832.31, peRatio: 25.1, dividendYield: 1.70},
+            {name: "Walmart", country: "USA", revenue: 648.13, earnings: 15.51, marketCap: 620.72, peRatio: 20.0, dividendYield: 1.50},
+            {name: "Mastercard", country: "USA", revenue: 22.27, earnings: 12.25, marketCap: 445.40, peRatio: 36.4, dividendYield: 0.50}
+        ];
+
+        const metricCombos = [
+            { x: 'revenue', y: 'peRatio', title: 'Revenue vs P/E Ratio', highlight: true },
+            { x: 'earnings', y: 'dividendYield', title: 'Earnings vs Dividend Yield', highlight: true },
+            { x: 'revenue', y: 'earnings', title: 'Revenue vs Earnings', highlight: true },
+            { x: 'revenue', y: 'marketCap', title: 'Revenue vs Market Cap', highlight: true },
+            { x: 'earnings', y: 'marketCap', title: 'Earnings vs Market Cap' },
+            { x: 'earnings', y: 'peRatio', title: 'Earnings vs P/E Ratio' },
+            { x: 'marketCap', y: 'peRatio', title: 'Market Cap vs P/E Ratio' },
+            { x: 'marketCap', y: 'dividendYield', title: 'Market Cap vs Dividend Yield' },
+            { x: 'revenue', y: 'dividendYield', title: 'Revenue vs Dividend Yield' },
+            { x: 'peRatio', y: 'dividendYield', title: 'P/E Ratio vs Dividend Yield' }
+        ];
+
+        // Add units for each metric
+        const metricUnits = {
+            revenue: '(Billion $)',
+            earnings: '(Billion $)',
+            marketCap: '(Billion $)',
+            peRatio: '(Ratio)',
+            dividendYield: '(%)'
+        };
+
+        const margin = { top: 20, right: 30, bottom: 40, left: 60 };
+        const baseWidth = document.querySelector('.container').offsetWidth / 5 - 40;
+        const width = baseWidth - margin.left - margin.right;
+        const height = width;
+
+        const tooltip = d3.select("body")
+            .append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+        const formatValue = (value) => {
+            if (value >= 1000) return `${Math.round(value/1000)}k`;
+            if (value % 1 !== 0) return value.toFixed(2);
+            return value.toString();
+        };
+
+        metricCombos.forEach((combo, i) => {
+            const container = d3.select("#chart-grid")
+                .append("div")
+                .attr("class", `chart ${combo.highlight ? 'highlighted' : ''}`);
+
+            const svg = container.append("svg")
+                .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const xScale = d3.scaleLinear()
+                .domain(d3.extent(data, d => d[combo.x]))
+                .range([0, width])
+                .nice();
+
+            const yScale = d3.scaleLinear()
+                .domain(d3.extent(data, d => d[combo.y]))
+                .range([height, 0])
+                .nice();
+
+            // Add grid lines
+            svg.append("g")
+                .attr("class", "grid")
+                .attr("opacity", 0.2)
+                .call(d3.axisBottom(xScale)
+                    .tickSize(height)
+                    .tickFormat(""));
+
+            svg.append("g")
+                .attr("class", "grid")
+                .attr("opacity", 0.2)
+                .call(d3.axisLeft(yScale)
+                    .tickSize(-width)
+                    .tickFormat(""));
+
+            // Add X axis
+            svg.append("g")
+                .attr("class", "axis")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale)
+                    .ticks(5)
+                    .tickFormat(formatValue));
+
+            // Add Y axis
+            svg.append("g")
+                .attr("class", "axis")
+                .call(d3.axisLeft(yScale)
+                    .ticks(5)
+                    .tickFormat(formatValue));
+
+            // Add dots
+            svg.selectAll("circle")
+                .data(data)
+                .join("circle")
+                .attr("cx", d => xScale(d[combo.x]))
+                .attr("cy", d => yScale(d[combo.y]))
+                .attr("r", 5)
+                .attr("fill", combo.highlight ? "#004E89" : "#B33C86")
+                .attr("opacity", 0.7)
+                .style("transition", "all 0.2s ease-in-out")
+                .style("stroke", "transparent")
+                .style("stroke-width", "2")
+                .on("mouseover", function(event, d) {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr("r", 7)
+                        .attr("opacity", 1)
+                        .style("stroke", "#000000");
+                    
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    
+                    tooltip.html(`
+                        <strong>${d.name}</strong> (${d.country})<br/>
+                        ${combo.x}: ${formatValue(d[combo.x])}${metricUnits[combo.x].replace('(', '').replace(')', '')}<br/>
+                        ${combo.y}: ${formatValue(d[combo.y])}${metricUnits[combo.y].replace('(', '').replace(')', '')}
+                    `)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function() {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr("r", 5)
+                        .attr("opacity", 0.7)
+                        .style("stroke", "transparent");
+                    
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
+
+            // Add axis labels with units
+            svg.append("text")
+                .attr("text-anchor", "middle")
+                .attr("x", width/2)
+                .attr("y", height + margin.bottom - 5)
+                .style("fill", "#64748b")
+                .style("font-size", "12px")
+                .text(`${combo.x.charAt(0).toUpperCase() + combo.x.slice(1)} ${metricUnits[combo.x]}`);
+
+            svg.append("text")
+                .attr("text-anchor", "middle")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -margin.left + 20)
+                .attr("x", -height/2)
+                .style("fill", "#64748b")
+                .style("font-size", "12px")
+                .text(`${combo.y.charAt(0).toUpperCase() + combo.y.slice(1)} ${metricUnits[combo.y]}`);
+
+            // Add title
+            container.append("div")
+                .attr("class", "chart-title")
+                .text(combo.title);
+        });
+    </script>
+</body>
+</html>
